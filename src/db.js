@@ -4,8 +4,12 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 
 // Paste your Firebase console > Project settings > Web app config here
 const app = initializeApp({
-  apiKey: 'YOUR_API_KEY', authDomain: 'YOUR_PROJECT.firebaseapp.com', projectId: 'YOUR_PROJECT',
-  storageBucket: 'YOUR_PROJECT.appspot.com', messagingSenderId: 'YOUR_SENDER_ID', appId: 'YOUR_APP_ID',
+  apiKey: "AIzaSyBl0qrR-HCp3jO8SZ-wvXo0gS0gCrbm81c",
+  authDomain: "brothers-vayanasala-libr-ebca4.firebaseapp.com",
+  projectId: "brothers-vayanasala-libr-ebca4",
+  storageBucket: "brothers-vayanasala-libr-ebca4.firebasestorage.app",
+  messagingSenderId: "503118293299",
+  appId: "1:503118293299:web:779c57b923e7dd3b253646",
 });
 export const db = getFirestore(app);
 export const signIn = () => signInAnonymously(getAuth(app));
@@ -20,7 +24,7 @@ export async function nextNumbers(category) {
   const s = await getDoc(doc(db, 'meta', 'counters'));
   const d = s.exists() ? s.data() : { total: 0, cats: {} };
   const code = CATS[category] || 'OT';
-  return { id: (d.total || 0) + 1, code: `${code}-${((d.cats || {})[code] || 0) + 1}` };
+  return { id: (d.total || 0) + 1, code: ${code}-${((d.cats || {})[code] || 0) + 1} };
 }
 
 // Atomic: Book ID and Category No can never be duplicated, even with two devices.
@@ -30,10 +34,10 @@ export async function addBook(b) {
     const mref = doc(db, 'meta', 'counters');
     const s = await t.get(mref);
     const d = s.exists() ? s.data() : { total: 0, cats: {} };
-    const id = (d.total || 0) + 1, no = ((d.cats || {})[code] || 0) + 1;
+    const id = (d.to 0) + 1, no = ((d.cats s || {})[code] || 0) + 1;
     t.set(mref, { total: id, cats: { ...(d.cats || {}), [code]: no } });
-    t.set(doc(db, 'books', String(id)), { ...b, bookId: id, catNo: no, catCode: `${code}-${no}`, createdAt: Date.now() });
-    return { id, catCode: `${code}-${no}` };
+    t.set(doc(db, 'books', String(id)), { ...b, bookId: id, catNo: no, catCode: ${code}-${no}, createdAt: Date.now() });
+    return { id, catCode: ${code}-${no} };
   });
 }
 
