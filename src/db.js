@@ -24,7 +24,7 @@ export async function nextNumbers(category) {
   const s = await getDoc(doc(db, 'meta', 'counters'));
   const d = s.exists() ? s.data() : { total: 0, cats: {} };
   const code = CATS[category] || 'OT';
-  return { id: (d.total || 0) + 1, code: code + '-' + (((d.cats || {})[code] || 0) + 1) };
+  return { id: (d.total  0) + 1, code: code + '-' + (((d.cats  {})[code] || 0) + 1) };
 }
 
 // Atomic: Book ID and Category No can never be duplicated, even with two devices.
@@ -34,7 +34,7 @@ export async function addBook(b) {
     const mref = doc(db, 'meta', 'counters');
     const s = await t.get(mref);
     const d = s.exists() ? s.data() : { total: 0, cats: {} };
-    const id = (d.total || 0) + 1, no = ((d.cats || {})[code] || 0) + 1;
+    const id = (d.total  0) + 1, no = ((d.cats  {})[code] || 0) + 1;
     t.set(mref, { total: id, cats: { ...(d.cats || {}), [code]: no } });
     t.set(doc(db, 'books', String(id)), { ...b, bookId: id, catNo: no, catCode: code + '-' + no, createdAt: Date.now() });
     return { id, catCode: code + '-' + no };
@@ -57,19 +57,6 @@ export async function addBookKeep(b, id, code, no) {
 }
 
 export async function findBook(input) {
-  export async function addBookKeep(b, id, code, no) {
-  return runTransaction(db, async (t) => {
-    const bref = doc(db, 'books', String(id)), mref = doc(db, 'meta', 'counters');
-    const bs = await t.get(bref), ms = await t.get(mref);
-    if (bs.exists()) throw new Error('duplicate');
-    const d = ms.exists() ? ms.data() : { total: 0, cats: {} };
-    const cats = { ...(d.cats || {}) };
-    cats[code] = Math.max(cats[code] || 0, no);
-    t.set(mref, { total: Math.max(d.total || 0, id), cats });
-    t.set(bref, { ...b, bookId: id, catNo: no, catCode: code + '-' + no, createdAt: Date.now() });
-    return { id };
-  });
-}
   const v = String(input).trim();
   const byCode = await getDocs(query(collection(db, 'books'), where('barcode', '==', v)));
   if (!byCode.empty) return byCode.docs[0].data();
