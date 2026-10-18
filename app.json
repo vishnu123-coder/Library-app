@@ -1,0 +1,39 @@
+{
+  "expo": {
+    "name": "Brothers Vayanasala",
+    "slug": "brothers-vayanasala",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "ios": {
+      "bundleIdentifier": "com.library.manager",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Camera is used to scan book and member barcodes."
+      },
+      "icon": "./assets/icon.png"
+    },
+    "android": {
+      "package": "com.library.manager",
+      "permissions": [
+        "CAMERA"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A1420"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow camera access to scan barcodes."
+        }
+      ]
+    ],
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A1420"
+    }
+  }
+}
