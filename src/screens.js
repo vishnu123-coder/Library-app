@@ -11,14 +11,16 @@ import { db, CATS, LANGS, DAY, fmt, addBook, addBookKeep, nextNumbers, findBook,
 const pad = { padding: 16, paddingBottom: 40 };
 const Title = ({ children }) => <Text style={{ fontSize: 24, fontWeight: '800', color: C.ink, marginBottom: 14 }}>{children}</Text>;
 const cats = Object.keys(CATS);
+// returns the first non-empty value
+const or = (...v) => { for (const a of v) { if (a) return a; } return v[v.length - 1]; };
 function resolveLang(v) {
-  const t = String(v || '').toLowerCase().trim();
+  const t = String(v ?? '').toLowerCase().trim();
   if (!t) return null;
   if (t.includes('മലയാളം')) return 'Malayalam';
   if (t.includes('ഇംഗ്ലീഷ്')) return 'English';
   if (t.includes('ഹിന്ദി')) return 'Hindi';
   if (t.includes('തമിഴ്')) return 'Tamil';
-  return LANGS.find((l) => t.startsWith(l.toLowerCase().slice(0, 3))) || null;
+  return LANGS.find((l) => t.startsWith(l.toLowerCase().slice(0, 3))) ?? null;
 }
 const ALIAS = { novel: 'Novel', novels: 'Novel', story: 'Story', stories: 'Story', shortstory: 'Story', shortstories: 'Story', poem: 'Poem', poems: 'Poem', poetry: 'Poem',
   reference: 'Reference', references: 'Reference', other: 'Others', others: 'Others', children: "Children's literature", childrens: "Children's literature",
@@ -26,16 +28,17 @@ const ALIAS = { novel: 'Novel', novels: 'Novel', story: 'Story', stories: 'Story
   biographyautobiography: 'Biography/Autobiography' };
 const CODE = Object.fromEntries(Object.entries(CATS).map(([k, v]) => [v.toLowerCase(), k]));
 // Understands English names, codes (N, S, OT, CL ...) and Malayalam names (നോവൽ, കഥ, കവിത ...)
+const has = (t, words) => words.some((w) => t.includes(w));
 function resolveCat(v) {
-  const t = String(v || '').toLowerCase().trim();
+  const t = String(v ?? '').toLowerCase().trim();
   if (!t) return null;
-  if (/ആത്മകഥ|ജീവചരിത്ര|biograph/.test(t)) return 'Biography/Autobiography';
-  if (/ബാല|കുട്ടി|ശിശു|child/.test(t)) return "Children's literature";
-  if (/നോവ|novel/.test(t)) return 'Novel';
-  if (/കവിത|poem|poetry|kavitha/.test(t)) return 'Poem';
-  if (/റഫറ|നിഘണ്ടു|refer|dictionar/.test(t)) return 'Reference';
-  if (/കഥ|\bstor/.test(t)) return 'Story';
-  if (/മറ്റ്|മറ്റു|\bother/.test(t)) return 'Others';
+  if (has(t, ['ആത്മകഥ', 'ജീവചരിത്ര', 'biograph'])) return 'Biography/Autobiography';
+  if (has(t, ['ബാല', 'കുട്ടി', 'ശിശു', 'child'])) return "Children's literature";
+  if (has(t, ['നോവ', 'novel'])) return 'Novel';
+  if (has(t, ['കവിത', 'poem', 'poetry', 'kavitha'])) return 'Poem';
+  if (has(t, ['റഫറ', 'നിഘണ്ടു', 'refer', 'dictionar'])) return 'Reference';
+  if (has(t, ['കഥ', ' stor']) ? true : t.startsWith('stor')) return 'Story';
+  if (has(t, ['മറ്റ്', 'മറ്റു', ' other']) ? true : t.startsWith('other')) return 'Others';
   const n = t.replace(/[^a-z]/g, '');
   if (ALIAS[n]) return ALIAS[n];
   const toks = t.split(/[^a-z]+/).filter(Boolean);
@@ -55,7 +58,7 @@ const Tile = ({ label, value, color, onPress }) => (
   </TouchableOpacity>
 );
 export function Dashboard({ books, issued, members, openCat, goStock, goBackup }) {
-  const counts = useMemo(() => { const m = {}; books.forEach((b) => (m[b.category] = (m[b.category] || 0) + 1)); return m; }, [books]);
+  const counts = useMemo(() => { const m = {}; books.forEach((b) => (m[b.category] = (m[b.category] ?? 0) + 1)); return m; }, [books]);
   const q = QUOTES[Math.floor(Date.now() / DAY) % QUOTES.length];
   return (
     <ScrollView contentContainerStyle={pad}>
@@ -79,7 +82,7 @@ export function Dashboard({ books, issued, members, openCat, goStock, goBackup }
               <Text style={{ color: C.teal, fontWeight: '800', fontSize: 15 }}>{CATS[c]}</Text>
             </View>
             <Text numberOfLines={2} style={{ fontSize: 16, fontWeight: '700', color: C.ink, marginTop: 8, minHeight: 40 }}>{c}</Text>
-            <Text style={{ fontSize: 28, fontWeight: '800', color: C.ink }}>{counts[c] || 0}</Text>
+            <Text style={{ fontSize: 28, fontWeight: '800', color: C.ink }}>{counts[c] ?? 0}</Text>
           </TouchableOpacity>))}
       </View>
       <Btn title="Backup & settings" icon="cloud-upload" kind="ghost" onPress={goBackup} style={{ marginTop: 6 }} />
@@ -93,13 +96,13 @@ export function AddBook() {
   const blank = { barcode: '', category: '', language: '', name: '', author: '', publication: '', cost: '' };
   const [f, setF] = useState(blank), [next, setNext] = useState(null), [scan, setScan] = useState(false), [busy, setBusy] = useState(false);
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
-  useEffect(() => { nextNumbers(f.category || 'Others').then(setNext).catch(() => {}); }, [f.category, busy]);
+  useEffect(() => { nextNumbers(f.category ? f.category : 'Others').then(setNext).catch(() => {}); }, [f.category, busy]);
 
   const save = async () => {
-    if (!f.category  !f.language  !f.name.trim()) return Alert.alert('Missing details', 'Category, language and book name are required.');
+    if (!(f.category && f.language && f.name.trim())) return Alert.alert('Missing details', 'Category, language and book name are required.');
     setBusy(true);
     try {
-      const r = await addBook({ ...f, name: f.name.trim(), author: f.author.trim(), publication: f.publication.trim(), cost: Number(f.cost) || 0 });
+      const r = await addBook({ ...f, name: f.name.trim(), author: f.author.trim(), publication: f.publication.trim(), cost: Number(f.cost) > 0 ? Number(f.cost) : 0 });
       Alert.alert('Book added', Book ID ${r.id}\nCategory No ${r.catCode});
       setF(blank);
     } catch (e) { Alert.alert('Could not save', e.message); }
@@ -122,20 +125,21 @@ export function AddBook() {
       let ok = 0, bad = 0, kept = 0; const unk = new Set(), unkL = new Set();
       for (const raw of rows) {
         const x = {}; Object.keys(raw).forEach((k) => (x[k.toLowerCase().replace(/[^a-z]/g, '')] = String(raw[k]).trim()));
-        const name = x.bookname  x.name  x.title;
+        const name = or(x.bookname, x.name, x.title);
         if (!name) { bad++; continue; }
-        const rawCat = x.category  x.catagory  x.categoryname  x.cat  '';
-        const cn = String(x.bookcategoryno  x.categoryno  x.catno || '').trim();
+        const rawCat = or(x.category, x.catagory, x.categoryname, x.cat, '');
+        const cn = String(or(x.bookcategoryno, x.categoryno, x.catno, '')).trim();
         const m = cn.match(/^([A-Za-z]+)\s*[-/. ]?\s*(\d+)$/);
         const codeCat = m ? CODE[m[1].toLowerCase()] : null;
-        const cat = resolveCat(rawCat)  codeCat  f.category || 'Others';
+        const cat = or(resolveCat(rawCat), codeCat, f.category, 'Others');
         if (rawCat && !resolveCat(rawCat) && !codeCat) unk.add(rawCat);
-        const rawLang = x.language  x.categorytype  x.catagorytype || '';
-        const lang = resolveLang(rawLang)  f.language  'Other';
+        const rawLang = or(x.language, x.categorytype, x.catagorytype, '');
+        const lang = or(resolveLang(rawLang), f.language, 'Other');
         if (rawLang && !resolveLang(rawLang)) unkL.add(rawLang);
-        const rec = { barcode: x.barcode  '', category: cat, language: lang, name, author: x.authorname  x.author || '',
-          publication: x.publishername  x.publicationsname  x.publicationname  x.publications  x.publication  x.publisher  x.press  '', cost: Number(x.cost  x.price) || 0 };
-        const idN = parseInt(x.bookid  x.bookstockno  x.stockno || '', 10);
+        const costNum = Number(or(x.cost, x.price, 0)) > 0 ? Number(or(x.cost, x.price, 0)) : 0;
+        const rec = { barcode: or(x.barcode, ''), category: cat, language: lang, name, author: or(x.authorname, x.author, ''),
+          publication: or(x.publishername, x.publicationsname, x.publicationname, x.publications, x.publication, x.publisher, x.press, ''), cost: costNum };
+        const idN = parseInt(or(x.bookid, x.bookstockno, x.stockno, ''), 10);
         try {
           if (m && CODE[m[1].toLowerCase()] && idN > 0) {
             const c2 = CODE[m[1].toLowerCase()];
@@ -157,12 +161,12 @@ export function AddBook() {
         <View style={{ flex: 1 }}><Text style={{ color: '#9FB3C8' }}>Category No (auto)</Text><Text style={{ color: C.amber, fontSize: 26, fontWeight: '800' }}>{next ? next.code : '—'}</Text></View>
       </Card>
       <Field label="Barcode" value={f.barcode} onChangeText={set('barcode')} placeholder="Scan or type" onScan={() => setScan(true)} />
-      <Select label="Category" value={f.category} options={cats} onChange={set('category')} />
+                                                                 <Select label="Category" value={f.category} options={cats} onChange={set('category')} />
       <Select label="Category type (language)" value={f.language} options={LANGS} onChange={set('language')} />
       <Field label="Book name" value={f.name} onChangeText={set('name')} />
       <Field label="Author name" value={f.author} onChangeText={set('author')} />
       <Field label="Publications name" value={f.publication} onChangeText={set('publication')} />
-                                                                               <Field label="Cost" value={f.cost} onChangeText={set('cost')} keyboardType="decimal-pad" />
+      <Field label="Cost" value={f.cost} onChangeText={set('cost')} keyboardType="decimal-pad" />
       <Btn title="Save book" icon="save" onPress={save} busy={busy} />
       <Btn title="Import from Excel (.xlsx)" icon="document-text" kind="ghost" onPress={importXlsx} busy={busy} style={{ marginTop: 10 }} />
       <Text style={{ color: C.mute, marginTop: 10, fontSize: 12 }}>Excel columns: Category, Language, Book Name, Author Name, Publications Name, Cost, Barcode (first row = headings). IDs are assigned automatically.</Text>
@@ -185,9 +189,9 @@ function BookList({ books, search, initCat = '' }) {
   const rows = useMemo(() => {
     const r = cat ? books.filter((b) => b.category === cat) : books;
     const t = q.trim().toLowerCase();
-    if (!search || !t) return r;
+    if (!(search && t)) return r;
     const val = (b) => ({ name: b.name, author: b.author, publication: b.publication,
-      all: ${b.category} ${b.catCode} ${b.name} ${b.author} ${b.publication} ${b.bookId} ${b.barcode} }[flt] || '').toLowerCase();
+      all: ${b.category} ${b.catCode} ${b.name} ${b.author} ${b.publication} ${b.bookId} ${b.barcode} }[flt] ?? '').toLowerCase();
     return r.filter((b) => val(b).includes(t));
   }, [books, q, flt, cat, search]);
   return (
@@ -206,20 +210,20 @@ function BookList({ books, search, initCat = '' }) {
           <SV horizontal showsHorizontalScrollIndicator={false}>{CAT_CHIPS.map(([k, l]) => <Chip key={l} on={cat === k} label={l} onPress={() => setCat(k)} />)}</SV>
         </>}
         <Text style={{ color: C.mute, fontSize: 15, fontWeight: '600', marginTop: 12 }}>{rows.length} of {books.length} books</Text>
-      </View>
+</View>
       <FlatList data={rows} keyExtractor={(b) => String(b.bookId)} contentContainerStyle={{ padding: 16, paddingTop: 6 }}
         ListEmptyComponent={<Empty text="No books found" />}
         renderItem={({ item: b }) => (
           <Card style={{ flexDirection: 'row' }}>
             <View style={{ width: 72, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: C.line, marginRight: 14, paddingRight: 14 }}>
-<Text style={{ fontSize: 12, color: C.mute, fontWeight: '700' }}>ID</Text>
+              <Text style={{ fontSize: 12, color: C.mute, fontWeight: '700' }}>ID</Text>
               <Text style={{ fontSize: 22, fontWeight: '800', color: C.ink }}>{b.bookId}</Text>
               <Text style={{ fontSize: 15, fontWeight: '800', color: C.teal, marginTop: 4 }}>{b.catCode}</Text>
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 17, fontWeight: '800', color: C.ink }}>{b.name}</Text>
-              <Text style={{ color: C.mute, marginTop: 3, fontSize: 15 }}>{b.author || 'Author not set'}</Text>
-              <Text style={{ color: C.mute, fontSize: 15 }}>{b.publication || 'Publication not set'} · {b.language}</Text>
+              <Text style={{ color: C.mute, marginTop: 3, fontSize: 15 }}>{or(b.author, 'Author not set')}</Text>
+              <Text style={{ color: C.mute, fontSize: 15 }}>{or(b.publication, 'Publication not set')} · {b.language}</Text>
               <Text style={{ color: C.ink, fontWeight: '800', marginTop: 4, fontSize: 16 }}>₹{b.cost}</Text>
             </View>
           </Card>)} />
@@ -234,7 +238,7 @@ export function Issue() {
   const [mode, setMode] = useState('issue'), [mid, setMid] = useState(''), [bk, setBk] = useState(''), [scan, setScan] = useState(null), [busy, setBusy] = useState(false);
   const now = Date.now();
   const go = async () => {
-    if (!bk.trim() || (mode === 'issue' && !mid.trim())) return Alert.alert('Missing details', 'Enter or scan the member and the book.');
+    if (!bk.trim() ? true : (mode === 'issue' && !mid.trim())) return Alert.alert('Missing details', 'Enter or scan the member and the book.');
     setBusy(true);
     try {
       const book = await findBook(bk);
@@ -267,7 +271,7 @@ export function Issue() {
           </TouchableOpacity>))}
       </View>
       {mode === 'issue' && <Field label="Member ID" value={mid} onChangeText={setMid} placeholder="Scan or enter" onScan={() => setScan('m')} />}
-      <Field label="Book (scan barcode / enter Book ID)" value={bk} onChangeText={setBk} placeholder="Scan or enter" onScan={() => setScan('b')} />
+<Field label="Book (scan barcode / enter Book ID)" value={bk} onChangeText={setBk} placeholder="Scan or enter" onScan={() => setScan('b')} />
       {mode === 'issue' && <Card style={{ backgroundColor: C.tealSoft, borderColor: C.tealSoft }}>
         <Text style={{ color: C.ink }}>Issue date: <Text style={{ fontWeight: '800' }}>{fmt(now)}</Text></Text>
         <Text style={{ color: C.ink, marginTop: 4 }}>Return date: <Text style={{ fontWeight: '800' }}>{fmt(now + 15 * DAY)}</Text> (15 days)</Text>
@@ -306,11 +310,11 @@ export function Members({ members }) {
       let ok = 0, skip = 0;
       for (const raw of rows) {
         const x = {}; Object.keys(raw).forEach((k) => (x[k.toLowerCase().replace(/[^a-z]/g, '')] = String(raw[k]).trim()));
-        const id = x.memberid  x.id, name = x.name  x.membername;
-        if (!id || !name) { skip++; continue; }
+        const id = or(x.memberid, x.id), name = or(x.name, x.membername);
+        if (!(id && name)) { skip++; continue; }
         const ref = doc(db, 'members', id);
         if ((await getDoc(ref)).exists()) { skip++; continue; }
-        await setDoc(ref, { memberId: id, name, phone: x.phonenumber  x.phone  x.mobile  '', address: x.address  '', createdAt: Date.now() });
+        await setDoc(ref, { memberId: id, name, phone: or(x.phonenumber, x.phone, x.mobile, ''), address: or(x.address, ''), createdAt: Date.now() });
         ok++;
       }
       Alert.alert('Import finished', ${ok} members added${skip ? , ${skip} skipped (duplicate or missing ID/name) : ''}.);
