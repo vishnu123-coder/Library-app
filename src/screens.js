@@ -285,7 +285,7 @@ export function Members({ members }) {
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const save = async () => {
     const id = f.memberId.trim();
-    if (!f.name.trim()  !id  !f.phone.trim()) return Alert.alert('Missing details', 'Name, member ID and phone number are required.');
+    if (!(f.name.trim() && id && f.phone.trim())) return Alert.alert('Missing details', 'Name, member ID and phone number are required.');
     setBusy(true);
     try {
       if ((await getDoc(doc(db, 'members', id))).exists()) throw new Error('This member ID already exists.');
