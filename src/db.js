@@ -4,12 +4,12 @@ import { getAuth, signInAnonymously } from 'firebase/auth';
 
 // Paste your Firebase console > Project settings > Web app config here
 const app = initializeApp({
-  apiKey: "AIzaSyCHNTYrW95bsCnq6L8pAAQxyDCH6uYXMeI",
-  authDomain: "brothers-vayanasala-2.firebaseapp.com",
-  projectId: "brothers-vayanasala-2",
-  storageBucket: "brothers-vayanasala-2.firebasestorage.app",
-  messagingSenderId: "95634722926",
-  appId: "1:95634722926:web:c4f4d83b7105e40046d67f",
+  apiKey: "AIzaSyBl0qrR-HCp3jO8SZ-wvXo0gS0gCrbm81c",
+  authDomain: "brothers-vayanasala-libr-ebca4.firebaseapp.com",
+  projectId: "brothers-vayanasala-libr-ebca4",
+  storageBucket: "brothers-vayanasala-libr-ebca4.firebasestorage.app",
+  messagingSenderId: "503118293299",
+  appId: "1:503118293299:web:779c57b923e7dd3b253646",
 });
 export const db = getFirestore(app);
 export const signIn = () => signInAnonymously(getAuth(app));
