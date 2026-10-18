@@ -25,7 +25,6 @@ const ALIAS = { novel: 'Novel', novels: 'Novel', story: 'Story', stories: 'Story
   childrensliterature: "Children's literature", childrenliterature: "Children's literature", biography: 'Biography/Autobiography', autobiography: 'Biography/Autobiography',
   biographyautobiography: 'Biography/Autobiography' };
 const CODE = Object.fromEntries(Object.entries(CATS).map(([k, v]) => [v.toLowerCase(), k]));
-// Understands "Novel", "novels", "N", "Novel - N", "N-1", "OT", "CL" ...
 function resolveCat(v) {
   const t = String(v || '').toLowerCase().trim();
   if (!t) return null;
@@ -38,7 +37,6 @@ function resolveCat(v) {
   if (n.includes('biograph')) return 'Biography/Autobiography';
   return null;
 }
-
 
 /* ---------- Dashboard ---------- */
 const QUOTES = ['A reader lives a thousand lives before he dies.', 'Today a reader, tomorrow a leader.', 'A room without books is like a body without a soul.',
@@ -59,7 +57,7 @@ export function Dashboard({ books, issued, members, openCat, goStock, goBackup }
         <Text style={{ color: C.amber, fontSize: 40, fontWeight: '800', lineHeight: 40 }}>“</Text>
         <Text style={{ color: '#fff', fontSize: 19, lineHeight: 28, fontWeight: '600' }}>{q}</Text>
         <Text style={{ color: C.amber, marginTop: 12, fontWeight: '800', letterSpacing: 2, fontSize: 13 }}>READ · LEARN · GROW</Text>
-      </Card>
+</Card>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <Tile label="Total Stock" value={books.length} color={C.teal} onPress={goStock} />
         <Tile label="Books Issued" value={issued} color={C.amber} />
@@ -91,11 +89,11 @@ export function AddBook() {
   useEffect(() => { nextNumbers(f.category || 'Others').then(setNext).catch(() => {}); }, [f.category, busy]);
 
   const save = async () => {
-    if (!f.category || !f.language || !f.name.trim()) return Alert.alert('Missing details', 'Category, language and book name are required.');
+    if (!f.category  !f.language  !f.name.trim()) return Alert.alert('Missing details', 'Category, language and book name are required.');
     setBusy(true);
     try {
       const r = await addBook({ ...f, name: f.name.trim(), author: f.author.trim(), publication: f.publication.trim(), cost: Number(f.cost) || 0 });
-      Alert.alert('Book added', `Book ID ${r.id}\nCategory No ${r.catCode}`);
+      Alert.alert('Book added', 'Book ID ' + r.id + '\nCategory No ' + r.catCode);
       setF(blank);
     } catch (e) { Alert.alert('Could not save', e.message); }
     setBusy(false);
@@ -114,31 +112,36 @@ export function AddBook() {
       const keys = rows.length ? Object.keys(rows[0]).map((k) => k.toLowerCase().replace(/[^a-z]/g, '')) : [];
       const hasCat = keys.some((k) => ['category', 'catagory', 'categoryname', 'cat', 'bookcategoryno', 'categoryno', 'catno'].includes(k));
       if (!hasCat && !f.category) { setBusy(false); return Alert.alert('Choose a category first', 'Your Excel has no Category column. Select the Category above (for example Novel) and import again. Every book in the file will be saved in that category.'); }
-      let ok = 0, bad = 0, kept = 0; const unk = new Set(), unkL = new Set();
+      let ok = 0, bad = 0, kept = 0; const unk = new Set(), unkL = new Set(), unkCN = new Set();
       for (const raw of rows) {
         const x = {}; Object.keys(raw).forEach((k) => (x[k.toLowerCase().replace(/[^a-z]/g, '')] = String(raw[k]).trim()));
-        const name = x.bookname || x.name || x.title;
+        const name = x.bookname  x.name  x.title;
         if (!name) { bad++; continue; }
-        const rawCat = x.category || x.catagory || x.categoryname || x.cat || '';
-        const cat = resolveCat(rawCat) || (rawCat ? 'Others' : f.category || 'Others');
+        const rawCat = x.category  x.catagory  x.categoryname  x.cat  '';
+        const cat = resolveCat(rawCat)  (rawCat ? 'Others' : f.category  'Others');
         if (rawCat && !resolveCat(rawCat)) unk.add(rawCat);
-        const rawLang = x.language || x.categorytype || x.catagorytype || '';
-        const lang = resolveLang(rawLang) || f.language || 'Other';
+        const rawLang = x.language  x.categorytype  x.catagorytype || '';
+        const lang = resolveLang(rawLang)  f.language  'Other';
         if (rawLang && !resolveLang(rawLang)) unkL.add(rawLang);
-        const rec = { barcode: x.barcode || '', category: cat, language: lang, name, author: x.authorname || x.author || '',
-          publication: x.publishername || x.publicationsname || x.publicationname || x.publications || x.publication || x.publisher || x.press || '', cost: Number(x.cost || x.price) || 0 };
-        const cn = String(x.bookcategoryno || x.categoryno || x.catno || '').trim();
-        const m = cn.match(/^([A-Za-z]+)\s*[-/. ]?\s*(\d+)$/);
-        const idN = parseInt(x.bookid || x.bookstockno || x.stockno || '', 10);
+        const rec = { barcode: x.barcode  '', category: cat, language: lang, name, author: x.authorname  x.author || '',
+          publication: x.publishername  x.publicationsname  x.publicationname  x.publications  x.publication  x.publisher  x.press  '', cost: Number(x.cost  x.price) || 0 };
+        const cn = String(x.bookcategoryno  x.categoryno  x.catno || '').trim();
+        const m = cn.match(/^\s*([^0-9]*?)[\s\-\u2010-\u2015_/.:]*([0-9]+)\s*$/);
+        const c2 = m ? resolveCat(m[1].replace(/[^A-Za-z]/g, '')) : null;
+        const idN = parseInt(x.bookid  x.bookstockno  x.stockno || '', 10);
+        if (cn && !c2 && !f.category) { bad++; if (unkCN.size < 6) unkCN.add(cn); continue; }
         try {
-          if (m && CODE[m[1].toLowerCase()] && idN > 0) {
-            const c2 = CODE[m[1].toLowerCase()];
-            await addBookKeep({ ...rec, category: c2 }, idN, CATS[c2], parseInt(m[2], 10)); kept++;
-          } else await addBook(rec);
+          if (c2 && idN > 0) { await addBookKeep({ ...rec, category: c2 }, idN, CATS[c2], parseInt(m[2], 10)); kept++; }
+          else await addBook(c2 ? { ...rec, category: c2 } : rec);
           ok++;
         } catch { bad++; }
       }
-      Alert.alert('Import finished', `${ok} books added${bad ? `, ${bad} skipped` : ''}.${unk.size ? `\n\nCategory not recognised (saved as Others): ${[...unk].slice(0, 8).join(', ')}` : ''}${kept ? `\n${kept} books kept their own Book ID and Category No from Excel.` : ''}${unkL.size ? `\n\nLanguage not recognised: ${[...unkL].slice(0, 5).join(', ')}` : ''}\n\nColumns found: ${heads}`);
+      Alert.alert('Import finished', ok + ' books added' + (bad ? ', ' + bad + ' skipped' : '') + '.'
+        + (unk.size ? '\n\nCategory not recognised (saved as Others): ' + [...unk].slice(0, 8).join(', ') : '')
+        + (kept ? '\n' + kept + ' books kept their own Book ID and Category No from Excel.' : '')
+        + (unkL.size ? '\n\nLanguage not recognised: ' + [...unkL].slice(0, 5).join(', ') : '')
+        + (unkCN.size ? '\n\nCategory No not understood (rows skipped): ' + [...unkCN].join(', ') : '')
+        + '\n\nColumns found: ' + heads);
     } catch (e) { Alert.alert('Import failed', e.message); }
     setBusy(false);
   };
@@ -159,7 +162,7 @@ export function AddBook() {
       <Field label="Cost" value={f.cost} onChangeText={set('cost')} keyboardType="decimal-pad" />
       <Btn title="Save book" icon="save" onPress={save} busy={busy} />
       <Btn title="Import from Excel (.xlsx)" icon="document-text" kind="ghost" onPress={importXlsx} busy={busy} style={{ marginTop: 10 }} />
-      <Text style={{ color: C.mute, marginTop: 10, fontSize: 12 }}>Excel columns: Category, Language, Book Name, Author Name, Publications Name, Cost, Barcode (first row = headings). IDs are assigned automatically.</Text>
+                                                                <Text style={{ color: C.mute, marginTop: 10, fontSize: 12 }}>Excel columns: Category, Language, Book Name, Author Name, Publications Name, Cost, Barcode (first row = headings). IDs are assigned automatically.</Text>
       <Scanner visible={scan} onClose={() => setScan(false)} onScan={set('barcode')} />
     </ScrollView>
   );
@@ -167,7 +170,7 @@ export function AddBook() {
 
 /* ---------- Book list (Stock + Search) ---------- */
 const FIELDS = [['all', 'All Fields'], ['name', 'Book Name'], ['author', 'Author Name'], ['publication', 'Publication Name']];
-const CAT_CHIPS = [['', 'All Categories'], ...cats.map((c) => [c, `${c} - ${CATS[c]}`])];
+const CAT_CHIPS = [['', 'All Categories'], ...cats.map((c) => [c, c + ' - ' + CATS[c]])];
 const Sec = ({ children }) => <Text style={{ fontSize: 13, fontWeight: '800', color: C.mute, letterSpacing: 1, marginTop: 12, marginBottom: 8 }}>{children}</Text>;
 const Chip = ({ on, label, onPress }) => (
   <TouchableOpacity onPress={onPress} style={{ paddingHorizontal: 16, paddingVertical: 10, borderRadius: 22, marginRight: 8, backgroundColor: on ? C.teal : '#fff', borderWidth: 1.5, borderColor: on ? C.teal : C.line }}>
@@ -181,7 +184,7 @@ function BookList({ books, search, initCat = '' }) {
     const t = q.trim().toLowerCase();
     if (!search || !t) return r;
     const val = (b) => ({ name: b.name, author: b.author, publication: b.publication,
-      all: `${b.category} ${b.catCode} ${b.name} ${b.author} ${b.publication} ${b.bookId} ${b.barcode}` }[flt] || '').toLowerCase();
+      all: [b.category, b.catCode, b.name, b.author, b.publication, b.bookId, b.barcode].join(' ') }[flt] || '').toLowerCase();
     return r.filter((b) => val(b).includes(t));
   }, [books, q, flt, cat, search]);
   return (
@@ -192,7 +195,7 @@ function BookList({ books, search, initCat = '' }) {
           <View style={{ flexDirection: 'row', backgroundColor: '#fff', borderRadius: 12, borderWidth: 1.5, borderColor: C.line, alignItems: 'center', paddingHorizontal: 12 }}>
             <Ionicons name="search" size={20} color={C.mute} />
             <TextInput value={q} onChangeText={setQ} placeholderTextColor="#8795A5" style={{ flex: 1, height: 50, marginLeft: 8, fontSize: 17, color: C.ink }}
-              placeholder={flt === 'all' ? 'Search all fields…' : `Search by ${FIELDS.find((x) => x[0] === flt)[1]}…`} />
+              placeholder={flt === 'all' ? 'Search all fields…' : 'Search by ' + FIELDS.find((x) => x[0] === flt)[1] + '…'} />
           </View>
           <Sec>SEARCH BY</Sec>
           <SV horizontal showsHorizontalScrollIndicator={false}>{FIELDS.map(([k, l]) => <Chip key={k} on={flt === k} label={l} onPress={() => setFlt(k)} />)}</SV>
@@ -209,7 +212,7 @@ function BookList({ books, search, initCat = '' }) {
               <Text style={{ fontSize: 12, color: C.mute, fontWeight: '700' }}>ID</Text>
               <Text style={{ fontSize: 22, fontWeight: '800', color: C.ink }}>{b.bookId}</Text>
               <Text style={{ fontSize: 15, fontWeight: '800', color: C.teal, marginTop: 4 }}>{b.catCode}</Text>
-            </View>
+</View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 17, fontWeight: '800', color: C.ink }}>{b.name}</Text>
               <Text style={{ color: C.mute, marginTop: 3, fontSize: 15 }}>{b.author || 'Author not set'}</Text>
@@ -240,12 +243,12 @@ export function Issue() {
         if (open) throw new Error('This book is already issued.');
         const t = Date.now();
         await setDoc(doc(collection(db, 'issues')), { memberId: mid.trim(), memberName: m.data().name, bookId: book.bookId, bookName: book.name, issueDate: t, dueDate: t + 15 * DAY, returned: false });
-        Alert.alert('Book issued', `${book.name}\nto ${m.data().name}\nReturn by ${fmt(t + 15 * DAY)}`);
+        Alert.alert('Book issued', book.name + '\nto ' + m.data().name + '\nReturn by ' + fmt(t + 15 * DAY));
       } else {
         if (!open) throw new Error('This book is not currently issued.');
         await updateDoc(open.ref, { returned: true, returnedAt: Date.now() });
         const late = Date.now() > open.data().dueDate;
-        Alert.alert('Book returned', `${book.name}${late ? '\nThis return is overdue.' : ''}`);
+        Alert.alert('Book returned', book.name + (late ? '\nThis return is overdue.' : ''));
       }
       setBk(''); setMid('');
     } catch (e) { Alert.alert('Not completed', e.message); }
@@ -271,7 +274,6 @@ export function Issue() {
     </ScrollView>
   );
 }
-
 /* ---------- Members ---------- */
 export function Members({ members }) {
   const blank = { name: '', memberId: '', phone: '', address: '' };
@@ -279,83 +281,6 @@ export function Members({ members }) {
   const set = (k) => (v) => setF((p) => ({ ...p, [k]: v }));
   const save = async () => {
     const id = f.memberId.trim();
-    if (!f.name.trim() || !id || !f.phone.trim()) return Alert.alert('Missing details', 'Name, member ID and phone number are required.');
+    if (!f.name.trim()  !id  !f.phone.trim()) return Alert.alert('Missing details', 'Name, member ID and phone number are required.');
     setBusy(true);
     try {
-      if ((await getDoc(doc(db, 'members', id))).exists()) throw new Error('This member ID already exists.');
-      await setDoc(doc(db, 'members', id), { ...f, memberId: id, name: f.name.trim(), createdAt: Date.now() });
-      setF(blank);
-    } catch (e) { Alert.alert('Could not save', e.message); }
-    setBusy(false);
-  };
-  const importXlsx = async () => {
-    const r = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true,
-      type: ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', '*/*'] });
-    if (r.canceled) return;
-    setBusy(true);
-    try {
-      const b64 = await FS.readAsStringAsync(r.assets[0].uri, { encoding: 'base64' });
-      const wb = XLSX.read(b64, { type: 'base64' });
-      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
-      let ok = 0, skip = 0;
-      for (const raw of rows) {
-        const x = {}; Object.keys(raw).forEach((k) => (x[k.toLowerCase().replace(/[^a-z]/g, '')] = String(raw[k]).trim()));
-        const id = x.memberid || x.id, name = x.name || x.membername;
-        if (!id || !name) { skip++; continue; }
-        const ref = doc(db, 'members', id);
-        if ((await getDoc(ref)).exists()) { skip++; continue; }
-        await setDoc(ref, { memberId: id, name, phone: x.phonenumber || x.phone || x.mobile || '', address: x.address || '', createdAt: Date.now() });
-        ok++;
-      }
-      Alert.alert('Import finished', `${ok} members added${skip ? `, ${skip} skipped (duplicate or missing ID/name)` : ''}.`);
-    } catch (e) { Alert.alert('Import failed', e.message); }
-    setBusy(false);
-  };
-  return (
-    <ScrollView contentContainerStyle={pad} keyboardShouldPersistTaps="handled">
-      <Title>New member</Title>
-      <Field label="Name" value={f.name} onChangeText={set('name')} />
-      <Field label="Member ID" value={f.memberId} onChangeText={set('memberId')} onScan={() => setScan(true)} placeholder="Scan or enter" />
-      <Field label="Phone number" value={f.phone} onChangeText={set('phone')} keyboardType="phone-pad" />
-      <Field label="Address" value={f.address} onChangeText={set('address')} multiline />
-      <Btn title="Add member" icon="person-add" onPress={save} busy={busy} />
-      <Btn title="Import members from Excel (.xlsx)" icon="document-text" kind="ghost" onPress={importXlsx} busy={busy} style={{ marginTop: 10 }} />
-      <Text style={{ color: C.mute, marginTop: 10, fontSize: 13 }}>Excel columns: Name, Member ID, Phone, Address (first row = headings). Existing member IDs are skipped.</Text>
-      <Text style={{ fontSize: 18, fontWeight: '800', color: C.ink, marginTop: 26, marginBottom: 10 }}>Members ({members.length})</Text>
-      {members.length === 0 && <Empty text="No members yet" />}
-      {members.map((m) => (
-        <Card key={m.memberId}><Text style={{ fontWeight: '800', fontSize: 17, color: C.ink }}>{m.name}</Text>
-          <Text style={{ color: C.teal, fontWeight: '700' }}>ID {m.memberId} · {m.phone}</Text>
-          {!!m.address && <Text style={{ color: C.mute }}>{m.address}</Text>}</Card>))}
-      <Scanner visible={scan} onClose={() => setScan(false)} onScan={set('memberId')} />
-    </ScrollView>
-  );
-}
-
-/* ---------- Backup ---------- */
-export function Backup({ onLogout }) {
-  const [busy, setBusy] = useState(false);
-  const run = async () => {
-    setBusy(true);
-    try {
-      const wb = XLSX.utils.book_new();
-      wb.Props = { Title: 'Brothers Vayanasala backup', Author: 'Vishnu', Comments: 'Developed by Vishnu' };
-      for (const n of ['books', 'members', 'issues']) {
-        const rows = (await getDocs(collection(db, n))).docs.map((d) => d.data());
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), n);
-      }
-      const uri = `${FS.cacheDirectory}library-backup-${new Date().toISOString().slice(0, 10)}.xlsx`;
-      await FS.writeAsStringAsync(uri, XLSX.write(wb, { type: 'base64', bookType: 'xlsx' }), { encoding: 'base64' });
-      await Sharing.shareAsync(uri, { mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', dialogTitle: 'Save library backup' });
-    } catch (e) { Alert.alert('Backup failed', e.message); }
-    setBusy(false);
-  };
-  return (
-    <ScrollView contentContainerStyle={pad}>
-      <Title>Backup</Title>
-      <Card><Text style={{ color: C.ink, lineHeight: 21 }}>Your data is stored live in Firebase. This also saves a copy of all books, members and issue records as an Excel file you can keep in Drive, email or on your computer.</Text></Card>
-      <Btn title="Create & share backup" icon="cloud-download" onPress={run} busy={busy} />
-      <Btn title="Log out" icon="log-out" kind="ghost" onPress={onLogout} style={{ marginTop: 10 }} />
-    </ScrollView>
-  );
-}
