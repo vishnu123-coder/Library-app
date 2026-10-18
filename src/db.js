@@ -2,7 +2,6 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, getDoc, getDocs, collection, query, where, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
 import { getAuth, signInAnonymously } from 'firebase/auth';
 
-// Paste your Firebase console > Project settings > Web app config here
 const app = initializeApp({
   apiKey: "AIzaSyBl0qrR-HCp3jO8SZ-wvXo0gS0gCrbm81c",
   authDomain: "brothers-vayanasala-libr-ebca4.firebaseapp.com",
@@ -24,20 +23,19 @@ export async function nextNumbers(category) {
   const s = await getDoc(doc(db, 'meta', 'counters'));
   const d = s.exists() ? s.data() : { total: 0, cats: {} };
   const code = CATS[category] || 'OT';
-  return { id: (d.total || 0) + 1, code: ${code}-${((d.cats || {})[code] || 0) + 1} };
+  return { id: (d.total  0) + 1, code: code + '-' + (((d.cats  {})[code] || 0) + 1) };
 }
 
-// Atomic: Book ID and Category No can never be duplicated, even with two devices.
 export async function addBook(b) {
   const code = CATS[b.category] || 'OT';
   return runTransaction(db, async (t) => {
     const mref = doc(db, 'meta', 'counters');
     const s = await t.get(mref);
     const d = s.exists() ? s.data() : { total: 0, cats: {} };
-    const id = (d.to 0) + 1, no = ((d.cats s || {})[code] || 0) + 1;
+    const id = (d.total  0) + 1, no = ((d.cats  {})[code] || 0) + 1;
     t.set(mref, { total: id, cats: { ...(d.cats || {}), [code]: no } });
-    t.set(doc(db, 'books', String(id)), { ...b, bookId: id, catNo: no, catCode: ${code}-${no}, createdAt: Date.now() });
-    return { id, catCode: ${code}-${no} };
+    t.set(doc(db, 'books', String(id)), { ...b, bookId: id, catNo: no, catCode: code + '-' + no, createdAt: Date.now() });
+    return { id, catCode: code + '-' + no };
   });
 }
 
